@@ -28,8 +28,12 @@ namespace CinematicTitleScreen.Data
                         EndDelay = 0,
                         Speed = 1f,
                         Positions = [
-                            new Vector4(17.07f, 35.33f, 0, 0.1f),
-                            new Vector4(62.87f, 38.38f, 0, 0.1f)
+                            new Vector3(17.07f, 35.33f, 0),
+                            new Vector3(33.02f, 35.33f, 2),
+                            new Vector3(37.02f, 35.33f, 1),
+                            new Vector3(50.96f, 38.38f, 1),
+                            new Vector3(54.96f, 38.38f, 2),
+                            new Vector3(62.87f, 38.38f, 0)
                         ],
                         AllowReverse = true
                     }

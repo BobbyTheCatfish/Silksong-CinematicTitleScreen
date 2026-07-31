@@ -25,10 +25,13 @@ internal static class AudioManagerPatch
 
     [HarmonyPatch(nameof(AudioManager.ApplyMusicCue))]
     [HarmonyPrefix]
-    public static bool ApplyMusicCue()
+    public static bool ApplyMusicCue(MusicCue musicCue)
     {
-        if (HasApplied) return BasePatch.PatchResult();
-        HasApplied = true;
+        var result = BasePatch.PatchResult();
+        if (!result)
+        {
+            return musicCue.OriginalMusicEventName == "TITLE";
+        }
 
         return true;
     }

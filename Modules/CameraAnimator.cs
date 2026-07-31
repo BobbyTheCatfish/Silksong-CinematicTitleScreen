@@ -10,13 +10,12 @@ namespace CinematicTitleScreen.Modules
     internal class CameraAnimator : MonoBehaviour
     {
         private const float EaseTime = 1;
+        private const float FadeTime = 0.5f;
         public static CameraAnimator Instance;
 
-        Animation[] Animations = [];
         public SceneInfo SceneInfo;
-        static WaitForSeconds FadeWaiter = new(0.5f);
-
-        bool GoToNext;
+        private Animation[] Animations = [];
+        private static readonly WaitForSeconds FadeWaiter = new(FadeTime);
 
         Transform Target;
         int index = 0;
@@ -37,9 +36,9 @@ namespace CinematicTitleScreen.Modules
             StopAllCoroutines();
 
             Target = GameCameras.instance.tk2dCam.transform;
-            //StartCoroutine(FadeCamera(Animations[0].Positions[0]));
             Animations = [.. SceneInfo.Animations];
 #if DEBUG
+            // Set delay and speed while debugging for faster results
             for (var i = 0; i < Animations.Length; i++)
             {
                 Animations[i].StartDelay = 5;
@@ -48,49 +47,66 @@ namespace CinematicTitleScreen.Modules
             }
 #endif
 
-            if (Animations.Length == 1)
+            // Shuffle animations if applicable
+            if (SceneInfo.RandomOrder)
             {
-                StartCoroutine(MoveSingleAnimation());
+                Animations.Shuffle();
             }
-            else
-            {
-                if (SceneInfo.RandomOrder)
-                {
-                    Animations.Shuffle();
-                }
-                StartCoroutine(ContinuousMovement());
-            }
+
+            StartCoroutine(ContinuousMovement());
         }
 
         IEnumerator ContinuousMovement()
         {
+            var firstPass = true;
             while (true)
             {
-                yield return StartCoroutine(Move());
+                // Single animation screens should loop
+                if (Animations.Length == 1)
+                {
+                    // Randomize starting position if applicable
+                    if (!firstPass || (Animations[0].AllowReverse && Random.value > 0.5f))
+                    {
+                        Animations[0].Positions = Animations[0].Positions.Reverse().ToArray();
+                    }
+                }
+
+                // Move through the animations
+                yield return StartCoroutine(Move(firstPass));
+                firstPass = false;
             }
         }
 
+#if DEBUG
         void Update()
         {
+            // Move to next position
             if (Input.GetKeyDown(KeyCode.Backslash))
             {
                 StopAllCoroutines();
-                GoToNext = true;
                 index++;
                 if (index == Animations.Length) index = 0;
                 StartCoroutine(FadeCamera(Animations[index].Positions[0], Animations[index].AmbientColor));
             }
         }
+#endif
 
         IEnumerator FadeCamera(Vector2 position, Color color)
         {
-            MaskerBlackout.StartMaskFade(1, 0.5f);
-            yield return FadeWaiter;
+            // Fade out if not already faded out
+            if (MaskerBlackout._activeBlackouts.Any(b => b.lastValue != 1))
+            {
+                MaskerBlackout.StartMaskFade(1, FadeTime);
+                yield return FadeWaiter;
+            }
 
             yield return null;
+
+            // Set next position
             Target = GameCameras.instance.tk2dCam.transform;
             Target.transform.SetPosition2D(position);
 
+            // Set camera colorgrade
             if (color.a != 0)
             {
                 GameCameras.instance.sceneColorManager.AmbientColorA = color;
@@ -109,51 +125,9 @@ namespace CinematicTitleScreen.Modules
 
             GameCameras.instance.sceneColorManager.UpdateScriptParameters();
 
+            // Fade back in
             yield return null;
-
-            MaskerBlackout.StartMaskFade(0, 0.5f);
-        }
-
-        IEnumerator MoveToNextPosition(Vector3 origin, Vector3 destination, float speed)
-        {
-            var distance = Vector2.Distance(origin, destination);
-            if (distance <= Mathf.Epsilon) yield break;
-
-            var velocity = Vector2.zero;
-
-            while (true)
-            {
-                if (GoToNext)
-                {
-                    GoToNext = false;
-                    break;
-                }
-
-                Vector2 newPosition;
-
-                //Vector2.SmoothDamp(Target.position, destination, ref velocity, EaseTime, speed);
-                var halfway = Vector2.Distance(Target.position, destination) > distance / 2;
-
-                if ((destination.z == 1 && !halfway) || (origin.z == 1 && halfway))
-                {
-                    newPosition = Vector2.MoveTowards(Target.position, destination, speed * Time.deltaTime);
-                    velocity = Vector2.one;
-                }
-                else
-                {
-                    newPosition = Vector2.SmoothDamp(Target.position, destination, ref velocity, EaseTime, speed);
-                }
-
-                Target.SetPosition2D(newPosition);
-
-                if (velocity.magnitude < 0.01f) break;
-                if ((newPosition - (Vector2)destination).magnitude < 0.01f) break;
-
-                yield return null;
-            }
-
-            Debug.Log("Finished");
-            Target.SetPosition2D(destination);
+            MaskerBlackout.StartMaskFade(0, FadeTime);
         }
 
         IEnumerator MoveAlongPath(Vector3[] keyframes, float speed)
@@ -186,7 +160,6 @@ namespace CinematicTitleScreen.Modules
             while (traveled < length && frameIndex < keyframes.Length - 1)
             {
                 traveled = Mathf.SmoothDamp(traveled, length, ref velocity, EaseTime, speed);
-                //var newPosition = GetPointAlongPath(keyframes, lengths, traveled);
 
                 var newX = xCurve.Evaluate(traveled);
                 var newY = yCurve.Evaluate(traveled);
@@ -200,64 +173,10 @@ namespace CinematicTitleScreen.Modules
             }
         }
 
-        Vector2 GetPointAlongPath(Vector3[] path, List<float> lengths, float distance)
-        {
-            var traveled = 0f;
-
-            for (var i = 0; i < lengths.Count; i++)
-            {
-                var segment = lengths[i];
-
-                if (distance <= traveled + segment)
-                {
-                    var t = (distance - traveled) / segment;
-                    var adjacent = path[i].x == path[i + 1].x || path[i].y == path[i + 1].y;
-
-                    if (i == 0 || i >= path.Length - 2)
-                    {
-                        if (i == 0)
-                        {
-                            return Interpolate(path[i], path[i + 1], path[i], path[i + 2], t);
-                        }
-                        else
-                        {
-                            return Vector2.Lerp(path[i], path[i + 1], t);
-                            //return Interpolate(path[i], path[i + 1], path[i - 1], path[i + 1], t);
-                        }
-                    }
-                    return Interpolate(path[i], path[i + 1], path[i - 1], path[i + 2], t);
-                }
-
-                traveled += segment;
-            }
-
-            return path.Last();
-        }
-
-
-        static Vector2 Interpolate(Vector2 start, Vector2 end, Vector2 previous, Vector2 next, float t)
-        {
-            t = Mathf.Clamp01(t);
-
-            var p0 = previous;
-            var p1 = start;
-            var p2 = end;
-            var p3 = next;
-
-            var t2 = t * t;
-            var t3 = t2 * t;
-            return 0.5f * (
-                (2f * p1) +
-                (-p0 + p2) * t +
-                (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
-                (-p0 + 3f * p1 - 3f * p2 + p3) * t3
-            );
-        }
-
-        Vector3[] GetPositions(Animation animation)
+        static Vector3[] GetPositionsRandomized(Animation animation)
         {
             var positions = animation.Positions;
-            if (animation.AllowReverse && Random.value > 0.5f)
+            if (animation.Positions.Length > 2 && animation.AllowReverse && Random.value > 0.5f)
             {
                 positions = animation.Positions.Reverse().ToArray();
             }
@@ -265,98 +184,64 @@ namespace CinematicTitleScreen.Modules
             return positions;
         }
 
-        IEnumerator MoveSingleAnimation()
+        IEnumerator SingleFrame(Vector2 position, float duration, bool fade)
         {
-            var anim = Animations[0];
+            var elapsed = 0f;
+            var frequency = 0.5f;
+            var totalDuration = duration;
+            if (fade) totalDuration += 0.5f;
 
-            // Reverse positions if able
-            var positions = GetPositions(anim);
-
-            // Set first position and fade
-            yield return FadeCamera(positions[0], anim.AmbientColor);
-
-            // No animation, just one lone frame
-            if (positions.Length == 1)
+            while (elapsed < totalDuration)
             {
-                yield break;
+                var x = (Mathf.PerlinNoise(50, Time.time * frequency) - 0.5f) * 0.05f * 2;
+                var y = (Mathf.PerlinNoise(150, Time.time * frequency) - 0.5f) * 0.05f * 2;
+
+                var newPosition = position + new Vector2(x, y);
+                Target.SetPosition2D(newPosition);
+
+                elapsed += Time.deltaTime;
+                if (fade && elapsed >= duration)
+                {
+                    fade = false;
+                    MaskerBlackout.StartMaskFade(1, 0.5f);
+                }
+                yield return null;
             }
 
-            while (true)
+        }
+
+        IEnumerator Move(bool firstPass)
+        {
+            for (var i = 0; i < Animations.Length; i++)
             {
-                // Wait for the start
-                if (anim.StartDelay > 0)
+                var anim = Animations[i];
+
+                // Reverse positions if able
+                var positions = GetPositionsRandomized(anim);
+
+                // Set first position and fade (if not static animation)
+                if (firstPass || Animations.Length > 1)
                 {
-                    yield return new WaitForSeconds(anim.StartDelay);
+                    yield return FadeCamera(positions[0], anim.AmbientColor);
                 }
 
-                // Animate through all the positions
-
-                if (anim.Positions.Length == 2)
+                // No animation, just shake in place
+                if (positions.Length == 1)
                 {
-                    for (var i = 0; i < positions.Length - 1; i++)
-                    {
-                        var origin = positions[i];
-                        var destination = positions[i + 1];
-
-
-                        yield return StartCoroutine(MoveToNextPosition(origin, destination, anim.Speed));
-                    }
+                    yield return StartCoroutine(SingleFrame(anim.Positions[0], anim.EndDelay, Animations.Length > 1));
                 }
                 else
                 {
-                    List<List<Vector3>> groups = [];
-                    List<Vector3> currentGroup = [];
-
-                    for (var i = 0; i < positions.Length; i++)
+                    // Wait for the start
+                    if (anim.StartDelay > 0)
                     {
-                        var pos = positions[i];
-                        currentGroup.Add(pos);
-                        if (pos.z == 0 && currentGroup.Count > 1)
-                        {
-                            groups.Add(currentGroup);
-                            currentGroup = [];
-                            currentGroup.Add(pos);
-                        }
-
+                        yield return new WaitForSeconds(anim.StartDelay);
                     }
-                    Debug.Log(string.Join("\n", groups.Select(g => string.Join(", ", g))));
 
-                    foreach (var group in groups)
-                    { 
-                        yield return StartCoroutine(MoveAlongPath(group.ToArray(), anim.Speed));
-                        yield return new WaitForSeconds(anim.EndDelay);
-                    }
+                    // Animate through all the positions
+                    yield return StartCoroutine(MoveAlongPath(positions, anim.Speed));
                 }
 
-                // Reverse and repeat (so it goes back to the start)
-                positions = positions.Reverse().ToArray();
-            }
-        }
-
-        IEnumerator Move()
-        {
-            foreach (var anim in Animations)
-            {
-                // Reverse positions if able
-                var positions = GetPositions(anim);
-
-                // Set first position and fade
-                yield return FadeCamera(positions[0], anim.AmbientColor);
-
-                // Wait for the start
-                if (anim.StartDelay > 0)
-                {
-                    yield return new WaitForSeconds(anim.StartDelay);
-                }
-
-                // No animation, continue to the next one
-                if (positions.Length == 1)
-                {
-                    continue;
-                }
-
-                // Animate through all the positions
-                yield return StartCoroutine(MoveAlongPath(positions, anim.Speed));
                 //for (var i = 0; i < positions.Length - 1; i++)
                 //{
                 //    var origin = positions[i];
