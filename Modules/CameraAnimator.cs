@@ -10,7 +10,7 @@ namespace CinematicTitleScreen.Modules
     internal class CameraAnimator : MonoBehaviour
     {
         private const float EaseTime = 1;
-        private const float FadeTime = 0.5f;
+        public const float FadeTime = 0.5f;
         public static CameraAnimator Instance;
 
         public SceneInfo SceneInfo;
@@ -86,17 +86,19 @@ namespace CinematicTitleScreen.Modules
                 StopAllCoroutines();
                 index++;
                 if (index == Animations.Length) index = 0;
-                StartCoroutine(FadeCamera(Animations[index].Positions[0], Animations[index].AmbientColor));
+                StartCoroutine(FadeCamera(Animations[index].Positions[0], Animations[index].UseLight));
             }
         }
 #endif
 
-        IEnumerator FadeCamera(Vector2 position, Color color)
+        IEnumerator FadeCamera(Vector2 position, bool enableLight)
         {
             // Fade out if not already faded out
             if (MaskerBlackout._activeBlackouts.Any(b => b.lastValue != 1))
             {
                 MaskerBlackout.StartMaskFade(1, FadeTime);
+                HeroLightReplacement.FadeOut();
+
                 yield return FadeWaiter;
             }
 
@@ -106,27 +108,12 @@ namespace CinematicTitleScreen.Modules
             Target = GameCameras.instance.tk2dCam.transform;
             Target.transform.SetPosition2D(position);
 
-            // Set camera colorgrade
-            if (color.a != 0)
-            {
-                GameCameras.instance.sceneColorManager.AmbientColorA = color;
-                GameCameras.instance.sceneColorManager.AmbientColorB = color;
-            }
-            else
-            {
-                var managerObj = SceneManager.GetActiveScene().FindGameObject("_SceneManager");
-                if (managerObj)
-                {
-                    var manager = managerObj.GetComponent<CustomSceneManager>();
-                    GameCameras.instance.sceneColorManager.AmbientColorA = manager.defaultColor;
-                    GameCameras.instance.sceneColorManager.AmbientColorB = manager.defaultColor;
-                }
-            }
-
-            GameCameras.instance.sceneColorManager.UpdateScriptParameters();
+            HeroLightReplacement.SetActive(enableLight);
 
             // Fade back in
             yield return null;
+
+            HeroLightReplacement.FadeIn();
             MaskerBlackout.StartMaskFade(0, FadeTime);
         }
 
@@ -203,7 +190,8 @@ namespace CinematicTitleScreen.Modules
                 if (fade && elapsed >= duration)
                 {
                     fade = false;
-                    MaskerBlackout.StartMaskFade(1, 0.5f);
+                    MaskerBlackout.StartMaskFade(1, FadeTime);
+                    HeroLightReplacement.FadeOut();
                 }
                 yield return null;
             }
@@ -222,13 +210,13 @@ namespace CinematicTitleScreen.Modules
                 // Set first position and fade (if not static animation)
                 if (firstPass || Animations.Length > 1)
                 {
-                    yield return FadeCamera(positions[0], anim.AmbientColor);
+                    yield return FadeCamera(positions[0], anim.UseLight);
                 }
 
                 // No animation, just shake in place
                 if (positions.Length == 1)
                 {
-                    yield return StartCoroutine(SingleFrame(anim.Positions[0], anim.EndDelay, Animations.Length > 1));
+                    yield return StartCoroutine(SingleFrame(anim.Positions[0], anim.StartDelay + anim.EndDelay, Animations.Length > 1));
                 }
                 else
                 {
@@ -240,6 +228,12 @@ namespace CinematicTitleScreen.Modules
 
                     // Animate through all the positions
                     yield return StartCoroutine(MoveAlongPath(positions, anim.Speed));
+
+                    // Wait for the start
+                    if (anim.EndDelay > 0)
+                    {
+                        yield return new WaitForSeconds(anim.EndDelay);
+                    }
                 }
 
                 //for (var i = 0; i < positions.Length - 1; i++)

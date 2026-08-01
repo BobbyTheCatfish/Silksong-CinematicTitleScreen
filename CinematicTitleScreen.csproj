@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <!-- 
   Imports silksong path properties only if present in order to allow CI builds. The file should be gitignored.
   If you are checking out from git and need to create a new one, you can use `dotnet new silksongpath` to generate one.
@@ -42,7 +42,7 @@
     <None Include="thunderstore/icon.png" Pack="True" PackagePath="icon.png" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <Reference Include="CinematicUnityExplorer.BIE5.Mono">
       <HintPath>H:\SteamLibrary\steamapps\common\Hollow Knight Silksong\BepInEx\plugins\CinematicUnityExplorer\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
     </Reference>

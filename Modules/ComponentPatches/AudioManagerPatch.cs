@@ -7,8 +7,6 @@ namespace CinematicTitleScreen.Modules.ComponentPatches;
 [HarmonyPatch(typeof(AudioManager))]
 internal static class AudioManagerPatch
 {
-    public static bool HasApplied = false;
-
     [HarmonyPatch(nameof(AudioManager.StopAndClearMusic))]
     [HarmonyPrefix]
     public static bool StopAndClearMusic()

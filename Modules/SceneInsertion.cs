@@ -78,19 +78,6 @@ namespace CinematicTitleScreen.Modules
 
         public static void CleanupScene(Scene scene, SceneInfo info)
         {
-            //var rootObjs = scene.GetRootGameObjects();
-            
-            //var root = new GameObject("Scene Root");
-            //root.transform.SetParent(rootObjs[0].transform);
-            //root.transform.parent = null;
-
-            //foreach (var obj in rootObjs)
-            //{
-            //    obj.transform.SetParent(root.transform);
-            //}
-
-            //root.transform.SetScaleMatching(info.Scale);
-
             if (info.DisablePaths != null)
             {
 

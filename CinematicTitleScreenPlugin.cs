@@ -1,10 +1,9 @@
 using BepInEx;
 using CinematicTitleScreen.Data;
 using CinematicTitleScreen.Modules;
-using CinematicTitleScreen.Modules.ComponentPatches;
 using HarmonyLib;
+using Silksong.AssetHelper.ManagedAssets;
 using System.Collections;
-using System.Linq;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -30,11 +29,15 @@ namespace CinematicTitleScreen
 
             SceneInfo = IntroSceneData.GetRandomScene();
 
+            var asset = ManagedAsset<GameObject>.FromNonSceneAsset("Assets/Prefabs/Heroes/Hero_Hornet.prefab", "heroloading_assets_all");
+            HeroLightReplacement.SetHeroAsset(asset);
+
             Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), "CinematicTitleScreen");
             SceneManager.activeSceneChanged += OnSceneChange;
 
         }
 
+#if DEBUG
         void Update()
         {
             if (Input.GetKeyDown(KeyCode.Slash) && SceneInsertion.Loaded)
@@ -59,6 +62,7 @@ namespace CinematicTitleScreen
                 UnityExplorer.UI.UIManager.GetPanel(UnityExplorer.UI.UIManager.Panels.ConsoleLog).SetActive(false);
             }
         }
+#endif
 
         private void OnSceneChange(Scene oldScene, Scene scene)
         {
@@ -68,13 +72,7 @@ namespace CinematicTitleScreen
             //    Loaded = false;
             //}
 
-            var isMenu = scene.name == Common.MenuSceneName;
-            if (oldScene.name != scene.name && !isMenu)
-            {
-                AudioManagerPatch.HasApplied = false;
-            }
-
-            if (!isMenu)
+            if (scene.name != Common.MenuSceneName)
             {
                 Debug.Log("Not menu");
 
@@ -94,22 +92,14 @@ namespace CinematicTitleScreen
                 }
             }
 
-            //var loaderObj = new GameObject("Scene Loader");
-            //loaderObj.SetActive(false);
-
-            //var loader = loaderObj.AddComponent<SceneAdditiveLoadConditional>();
-            //loader.sceneNameToLoad = SceneInfo.Name;
-
-            //GameManager.instance.OnLoadedBoss += OnLoad;
-
-            //StartCoroutine(loader.LoadRoutine(true, loader));
-
             StartCoroutine(SceneInsertion.LoadSceneAsync(SceneInfo));
 
             IEnumerator CleanRoutine()
             {
                 yield return null;
                 MenuCleaner.CleanMenu(scene);
+
+                yield return StartCoroutine(HeroLightReplacement.CreateLight());
             }
 
             StartCoroutine(CleanRoutine());

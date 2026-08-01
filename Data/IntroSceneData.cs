@@ -7,7 +7,7 @@ namespace CinematicTitleScreen.Data
 {
     internal static class IntroSceneData
     {
-        public static int SceneIndexOverride = 10;
+        public static int SceneIndexOverride = 0;
 
         static readonly List<SceneInfo> MossScenes = [
             new SceneInfo {
@@ -44,7 +44,7 @@ namespace CinematicTitleScreen.Data
             new SceneInfo {
                 Name = "Bonetown",
                 Animations = [
-                    Animation.SingleFrame(new Vector2(242.75f, 12.62f), ambientColor: new Color32(128, 128, 128, 255)),
+                    Animation.SingleFrame(new Vector2(242.75f, 12.62f)),
                     Animation.SingleFrame(new Vector2(288.38f, 26.75f)),
                     new Animation {
                         StartDelay = 1,
@@ -65,8 +65,8 @@ namespace CinematicTitleScreen.Data
             new SceneInfo {
                 Name = "Bonegrave",
                 Animations = [
+                    Animation.SingleFrame(new Vector2(197.88f, 12.84f), useLight: false),
                     Animation.SingleFrame(new Vector2(252.97f, 38.03f)),
-                    Animation.SingleFrame(new Vector2(197.88f, 12.84f)),
                     Animation.SingleFrame(new Vector2(253.54f, 13.3f)),
                     Animation.SingleFrame(new Vector2(292.88f, 70.15f))
                 ],
@@ -96,6 +96,7 @@ namespace CinematicTitleScreen.Data
                         StartDelay = 25,
                         EndDelay = 25,
                         AllowReverse = true,
+                        UseLight= false,
                         Positions = [
                             new Vector2(16.18f, 7.7f),
                             new Vector2(40.65f, 7.7f)
@@ -128,7 +129,7 @@ namespace CinematicTitleScreen.Data
             new SceneInfo {
                 Name = "Weave_10",
                 Animations = [
-                    Animation.SingleFrame(new Vector2(79.1f, 15.54f))
+                    Animation.SingleFrame(new Vector2(79.1f, 15.54f), useLight: false)
                 ],
                 DisablePaths = [
                     "Crest Upgrade Shrine/crest_shrine_break_tube parent/crest_shrine_break_tube/Mask",
@@ -178,8 +179,7 @@ namespace CinematicTitleScreen.Data
             new SceneInfo {
                 Name = "Shadow_Weavehome",
                 Animations = [
-                    Animation.SingleFrame(new Vector2(127.27f, 58.62f)),
-                    Animation.SingleFrame(new Vector2(80.9f, 58.62f)),
+                    Animation.SingleFrame(new Vector2(127.27f, 58.62f), useLight : false),
                     new Animation {
                         Positions = [
                             new Vector2(15.82f, 58.3f),
@@ -191,11 +191,13 @@ namespace CinematicTitleScreen.Data
                             new Vector2(90.04f, 41.88f)
                         ]
                     },
+                    Animation.SingleFrame(new Vector2(80.9f, 58.62f), useLight : false),
                 ],
                 PersistantBools = [
                     BoolData("weaver_lift_power_chamber", "Shadow_Weavehome")
                 ],
                 AddHero = true,
+                RandomOrder = false
             },
 
             new SceneInfo {
@@ -229,9 +231,12 @@ namespace CinematicTitleScreen.Data
                 ]
             },
 
-            //new SceneInfo {
-            //    Name = ""
-            //}
+            new SceneInfo {
+                Name = "Bone_05",
+                Animations = [
+                    Animation.SingleFrame(new Vector2(83.25f, 8.65f))
+                ]
+            }
         ];
 
         public static readonly List<SceneInfo> Scenes = [
